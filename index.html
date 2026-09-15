@@ -18,7 +18,13 @@
   .row label { width:86px; color:#9fb0c6; }
   .row input[type=range] { flex:1; accent-color:#7fd4ff; }
   .row .v { width:40px; text-align:right; color:#7fd4ff; }
-  #btns { margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; }
+  #btns, #btns2 { margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; }
+  #fitbox { margin-top:10px; font-size:11px; color:#9fb0c6; }
+  #fitbox .fhead { color:#7fd4ff; letter-spacing:1px; font-size:10px; margin-bottom:4px; }
+  #fitbox .frow { display:flex; justify-content:space-between; padding:1px 0; }
+  #fitbox .frow span:last-child { color:#7fd4ff; }
+  #pinlist { margin-top:8px; font-size:10.5px; color:#6b7688; max-height:110px; overflow-y:auto; }
+  #pinlist .subj { color:#ffd21a; }
   button { flex:1 1 30%; background:#16202e; color:#9fd8ff; border:1px solid #2a3a52;
     border-radius:6px; padding:6px 0; font:inherit; font-size:11px; cursor:pointer; }
   button:hover { background:#1d2a3e; }
@@ -51,6 +57,14 @@
     <button id="side">side</button>
     <button id="back">back</button>
   </div>
+  <div id="btns2">
+    <button id="importBtn">import spec</button>
+    <button id="exportBtn">export spec</button>
+    <button id="pinsBtn" class="on">pins</button>
+  </div>
+  <input type="file" id="specFile" accept=".json,application/json" style="display:none">
+  <div id="fitbox"></div>
+  <div id="pinlist"></div>
   <div id="legend">
     <div class="bar"></div>
     <div class="ticks"><span>0 · no data</span><span>0.5</span><span>1.0 · dense</span></div>
@@ -123,6 +137,124 @@ const META = {
  ],
  "height_m": 1.6587525262849767
 };
+const BASE = {
+ "measurements_cm": {
+  "height": 165.9,
+  "bust": 115.7,
+  "waist": 95.2,
+  "hips": 104.4,
+  "thigh_L": 45.6,
+  "thigh_R": 45.6,
+  "shoulder": 33.1,
+  "torso": 50.0,
+  "leg": 85.8
+ },
+ "landmarks": [
+  {
+   "id": "apex.L",
+   "label": "bust apex L",
+   "vertex": 3315,
+   "pos": [
+    0.04024,
+    0.72781,
+    0.07846
+   ]
+  },
+  {
+   "id": "apex.R",
+   "label": "bust apex R",
+   "vertex": 6078,
+   "pos": [
+    -0.04029,
+    0.72782,
+    0.07848
+   ]
+  },
+  {
+   "id": "waist.min",
+   "label": "waist narrowest (front-center)",
+   "vertex": 5494,
+   "pos": [
+    -3e-05,
+    0.61515,
+    -0.04879
+   ]
+  },
+  {
+   "id": "hip.L",
+   "label": "hip max width L",
+   "vertex": 4088,
+   "pos": [
+    0.11457,
+    0.50713,
+    0.01004
+   ]
+  },
+  {
+   "id": "hip.R",
+   "label": "hip max width R",
+   "vertex": 6832,
+   "pos": [
+    -0.11463,
+    0.50714,
+    0.01005
+   ]
+  },
+  {
+   "id": "glute.max",
+   "label": "glute max projection",
+   "vertex": 8387,
+   "pos": [
+    -0.03697,
+    0.51306,
+    -0.08761
+   ]
+  },
+  {
+   "id": "shoulder.L",
+   "label": "shoulder L",
+   "vertex": 4529,
+   "pos": [
+    0.27535,
+    0.80404,
+    -0.01422
+   ]
+  },
+  {
+   "id": "shoulder.R",
+   "label": "shoulder R",
+   "vertex": 7265,
+   "pos": [
+    -0.2754,
+    0.80359,
+    -0.01421
+   ]
+  },
+  {
+   "id": "crotch",
+   "label": "crotch",
+   "vertex": 5622,
+   "pos": [
+    -3e-05,
+    0.46223,
+    -0.01442
+   ]
+  },
+  {
+   "id": "navel",
+   "label": "navel approx",
+   "vertex": 5943,
+   "pos": [
+    -2e-05,
+    0.61434,
+    0.08125
+   ]
+  }
+ ],
+ "height_m": 1.6587525262849767,
+ "units": "cm",
+ "note": "Template baselines. Slider calibration: slider = measured_cm / baseline_cm. Shoulder = SMPL-X shoulder-joint span + ~4cm flesh estimate (informational; no shoulder slider)."
+};
 function b64buf(s) {
   const bin = atob(s), b = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
@@ -172,6 +304,30 @@ const solidMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
   vertexColors: true, transparent: true, opacity: 0.94 }));
 solidMesh.visible = false;
 scene.add(wireMesh, solidMesh);
+
+// ---- landmark pins ----
+const pinsGroup = new THREE.Group(); scene.add(pinsGroup);
+const pinData = []; // {id,label,vertex,mesh,type}
+const pinGeo = new THREE.SphereGeometry(0.0075, 12, 10);
+function clearPins() {
+  while (pinsGroup.children.length) pinsGroup.remove(pinsGroup.children[0]);
+  pinData.length = 0;
+}
+function addPin(id, label, vertex, pos, type) {
+  let p = null;
+  if (vertex != null && vertex >= 0 && vertex < NV)
+    p = [posAttr.array[vertex * 3], posAttr.array[vertex * 3 + 1], posAttr.array[vertex * 3 + 2]];
+  else if (pos) p = pos;
+  if (!p) return;
+  const m = new THREE.Mesh(pinGeo, new THREE.MeshBasicMaterial({
+    color: type === 'subject' ? 0xffd21a : 0x3fa9f5, depthTest: false, transparent: true, opacity: 0.95 }));
+  m.position.set(p[0], p[1], p[2]); m.renderOrder = 5;
+  pinsGroup.add(m); pinData.push({ id, label: label || id, vertex, mesh: m, type });
+}
+function showTemplatePins() {
+  clearPins();
+  (BASE.landmarks || []).forEach(l => addPin(l.id, l.label, l.vertex, l.pos, 'template'));
+}
 
 // ---- manual orbit (no addons dependency) ----
 const target = new THREE.Vector3(0, 0.5, 0);
@@ -236,6 +392,9 @@ function applyParams() {
   }
   posAttr.needsUpdate = true;
   geo.computeVertexNormals();
+  for (const pd of pinData)
+    if (pd.vertex != null)
+      pd.mesh.position.set(pos[pd.vertex * 3], pos[pd.vertex * 3 + 1], pos[pd.vertex * 3 + 2]);
   if (errBox && !Number.isFinite(pos[0] + pos[1] + pos[2])) {
     errBox.style.display = 'block';
     errBox.textContent = 'geometry fault: non-finite vertex detected';
@@ -271,6 +430,87 @@ const view = (t, p) => {
 document.getElementById('front').onclick = () => view(0, 1.45);
 document.getElementById('side').onclick  = () => view(Math.PI / 2, 1.45);
 document.getElementById('back').onclick  = () => view(Math.PI, 1.45);
+
+// ---- body-spec import / export ----
+const SLIDER_KEY = { bust: 'bust', waist: 'waist', hips: 'hips', thigh: 'thighs', height: 'height' };
+let lastFit = {};
+function renderFit(fit) {
+  lastFit = fit || {};
+  const rows = ['bust', 'waist', 'hips', 'glute', 'thigh'].map(r => {
+    const v = lastFit[r];
+    return `<div class="frow"><span>${r}</span><span>${v == null ? '&mdash;' : (+v).toFixed(2)}</span></div>`;
+  }).join('');
+  document.getElementById('fitbox').innerHTML =
+    '<div class="fhead">FIT CONFIDENCE (coverage-derived)</div>' + rows;
+}
+function renderPinList() {
+  const subj = pinData.filter(p => p.type === 'subject');
+  document.getElementById('pinlist').innerHTML = subj.length
+    ? subj.map(p => `<div class="subj">● ${p.id} — ${p.label}</div>`).join('')
+    : '<div>no subject landmarks loaded</div>';
+}
+function applySpec(s) {
+  if (s.spec !== 'modbod/body-spec@1') throw new Error('unknown spec: ' + s.spec);
+  const M = s.measurements || {};
+  for (const k of Object.keys(SLIDER_KEY)) {
+    const v = M[k];
+    if (v == null) continue;
+    const base = BASE.measurements_cm[k === 'thigh' ? 'thigh_L' : k];
+    if (!base) continue;
+    const el = document.getElementById(SLIDER_KEY[k]);
+    el.value = Math.min(parseFloat(el.max), Math.max(parseFloat(el.min), v / base));
+  }
+  sync();
+  showTemplatePins();
+  (s.landmarks || []).forEach(l => {
+    if (l.vertex != null || l.pos) addPin(l.id, l.label, l.vertex, l.pos, 'subject');
+  });
+  renderFit(s.fit || {});
+  renderPinList();
+}
+document.getElementById('importBtn').onclick = () => document.getElementById('specFile').click();
+document.getElementById('specFile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try { applySpec(JSON.parse(rd.result)); }
+    catch (err) { alert('spec import failed: ' + err.message); }
+  };
+  rd.readAsText(f);
+  e.target.value = '';
+});
+document.getElementById('exportBtn').onclick = () => {
+  const M = {};
+  for (const k of Object.keys(SLIDER_KEY)) {
+    const base = BASE.measurements_cm[k === 'thigh' ? 'thigh_L' : k];
+    M[k] = Math.round(P[SLIDER_KEY[k]] * base * 10) / 10;
+  }
+  const spec = {
+    spec: 'modbod/body-spec@1', subject: '01', units: 'cm',
+    updated: new Date().toISOString().slice(0, 10),
+    measurements: M,
+    landmarks: pinData.filter(p => p.type === 'subject' && p.vertex != null)
+      .map(p => ({ id: p.id, label: p.label, vertex: p.vertex,
+        pos: [+p.mesh.position.x.toFixed(4), +p.mesh.position.y.toFixed(4), +p.mesh.position.z.toFixed(4)] })),
+    fit: lastFit,
+    notes: 'exported from modbod viewer'
+  };
+  const blob = new Blob([JSON.stringify(spec, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'subject01.spec.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+};
+const pinsBtn = document.getElementById('pinsBtn');
+pinsBtn.onclick = () => {
+  pinsGroup.visible = !pinsGroup.visible;
+  pinsBtn.classList.toggle('on', pinsGroup.visible);
+};
+showTemplatePins();
+renderFit({});
+renderPinList();
 
 sync();
 
