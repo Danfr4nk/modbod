@@ -8,16 +8,30 @@
 <style>
   html, body { margin:0; height:100%; background:#050914; color:#c9d4e0;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow:hidden; }
-  #c { position:fixed; inset:0; display:block; }
-  #panel { position:fixed; top:12px; left:12px; background:rgba(12,14,20,.9);
-    border:1px solid #2a3342; border-radius:8px; padding:14px 16px; width:258px;
-    font-size:12px; line-height:1.5; max-height:calc(100vh - 24px); overflow-y:auto; }
-  #panel h1 { font-size:13px; margin:0 0 2px; color:#7fd4ff; letter-spacing:1px; }
-  #panel .sub { color:#6b7688; font-size:11px; margin-bottom:10px; }
-  .row { display:flex; align-items:center; gap:8px; margin:7px 0; }
-  .row label { width:86px; color:#9fb0c6; }
-  .row input[type=range] { flex:1; accent-color:#7fd4ff; }
-  .row .v { width:40px; text-align:right; color:#7fd4ff; }
+  #c { position:fixed; inset:0; display:block; touch-action:none; }
+  #sheet { position:fixed; left:0; right:0; bottom:0; z-index:20;
+    background:rgba(10,13,19,.95); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-top:1px solid #2a3342; border-radius:16px 16px 0 0;
+    transform:translateY(calc(100% - 48px)); transition:transform .28s cubic-bezier(.2,.8,.2,1);
+    max-height:64vh; display:flex; flex-direction:column;
+    box-shadow:0 -8px 32px rgba(0,0,0,.5); }
+  #sheet.open { transform:translateY(0); }
+  #grab { min-height:48px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px; cursor:pointer; user-select:none; -webkit-user-select:none; flex:none; }
+  #sheetTitle { color:#7fd4ff; font-size:12px; letter-spacing:2px; }
+  #sheetTitle small { color:#525d70; letter-spacing:1px; }
+  #chev { color:#525d70; font-size:11px; }
+  #sheetBody { overflow-y:auto; padding:2px 18px 24px; -webkit-overflow-scrolling:touch; }
+  .sect { font-size:9.5px; letter-spacing:2.5px; color:#525d70; margin:14px 0 2px; }
+  .sub { color:#6b7688; font-size:11px; margin:2px 0 4px; }
+  .row { display:flex; align-items:center; gap:8px; margin:5px 0; font-size:11.5px; }
+  .row label { width:72px; color:#9fb0c6; flex:none; }
+  .row input[type=range] { flex:1; accent-color:#7fd4ff; height:24px; min-width:0; }
+  .row .v { width:46px; text-align:right; color:#7fd4ff; font-size:11px; flex:none; }
+  @media (min-width:700px) {
+    #sheet { left:auto; right:16px; bottom:16px; width:330px; border:1px solid #2a3342;
+      border-radius:14px; box-shadow:0 8px 32px rgba(0,0,0,.5); }
+  }
   #btns, #btns2 { margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; }
   #fitbox { margin-top:10px; font-size:11px; color:#9fb0c6; }
   #fitbox .fhead { color:#7fd4ff; letter-spacing:1px; font-size:10px; margin-bottom:4px; }
@@ -26,7 +40,8 @@
   #pinlist { margin-top:8px; font-size:10.5px; color:#6b7688; max-height:110px; overflow-y:auto; }
   #pinlist .subj { color:#ffd21a; }
   button { flex:1 1 30%; background:#16202e; color:#9fd8ff; border:1px solid #2a3a52;
-    border-radius:6px; padding:6px 0; font:inherit; font-size:11px; cursor:pointer; }
+    border-radius:8px; padding:9px 0; font:inherit; font-size:11.5px; cursor:pointer;
+    min-height:38px; }
   button:hover { background:#1d2a3e; }
   button.on { background:#274b6b; color:#dff2ff; }
   #legend { display:none; margin-top:10px; }
@@ -34,22 +49,24 @@
     background:linear-gradient(90deg,#ff2a1a,#ffd21a 50%,#2aff5a); }
   #legend .ticks { display:flex; justify-content:space-between; font-size:10px; color:#6b7688; }
   #legend .note { font-size:10px; color:#525d70; margin-top:5px; line-height:1.5; }
-  #foot { position:fixed; bottom:10px; left:12px; font-size:10.5px; color:#525d70;
-    max-width:62ch; }
+  #sheetFoot { margin-top:14px; font-size:10px; color:#525d70; line-height:1.6; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="err" style="display:none;position:fixed;top:12px;left:12px;z-index:50;background:#3a0d0d;color:#ff9c9c;font-size:12px;padding:8px 10px;border:1px solid #7a1f1f;border-radius:6px;max-width:70ch;"></div>
-<div id="panel">
-  <h1>SUBJECT 01</h1>
+<div id="sheet">
+  <div id="grab"><span id="sheetTitle">SUBJECT 01 <small>· controls</small></span><span id="chev">▲</span></div>
+  <div id="sheetBody">
   <div class="sub">wireframe proportion study — anonymous</div>
+  <div class="sect">SCULPT</div>
   <div class="row"><label>Bust</label><input id="bust" type="range" min="0.8" max="1.4" step="0.01" value="1.10"><span class="v" id="bust_v"></span></div>
   <div class="row"><label>Waist</label><input id="waist" type="range" min="0.8" max="1.3" step="0.01" value="0.95"><span class="v" id="waist_v"></span></div>
   <div class="row"><label>Hips</label><input id="hips" type="range" min="0.8" max="1.4" step="0.01" value="1.10"><span class="v" id="hips_v"></span></div>
   <div class="row"><label>Glute proj.</label><input id="glute" type="range" min="0.8" max="1.5" step="0.01" value="1.20"><span class="v" id="glute_v"></span></div>
   <div class="row"><label>Thighs</label><input id="thighs" type="range" min="0.8" max="1.4" step="0.01" value="1.05"><span class="v" id="thighs_v"></span></div>
   <div class="row"><label>Height</label><input id="height" type="range" min="0.9" max="1.1" step="0.005" value="1"><span class="v" id="height_v"></span></div>
+  <div class="sect">VIEW</div>
   <div id="btns">
     <button id="rot" class="on">⟳ rotate</button>
     <button id="cov">coverage</button>
@@ -57,6 +74,7 @@
     <button id="side">side</button>
     <button id="back">back</button>
   </div>
+  <div class="sect">SPEC</div>
   <div id="btns2">
     <button id="importBtn">import spec</button>
     <button id="exportBtn">export spec</button>
@@ -73,10 +91,13 @@
     Red: no source material — statistical prior only.<br>
     Genital detail omitted by design; mesh stays schematic.</div>
   </div>
+  <div id="sheetFoot">Base mesh: SMPL-X female statistical template (research body model),
+  posed to T-pose. Sliders sculpt regions along surface normals. Uncalibrated to
+  her — no measurements taken. Local only.<br>
+  Drag&nbsp;·&nbsp;orbit &nbsp;&nbsp; two-finger drag&nbsp;·&nbsp;pan &nbsp;&nbsp;
+  pinch&nbsp;·&nbsp;zoom &nbsp;&nbsp; double-tap&nbsp;·&nbsp;reset view.</div>
+  </div>
 </div>
-<div id="foot">Base mesh: SMPL-X female statistical template (research body model), posed to
-T-pose. Sliders sculpt regions along surface normals. Uncalibrated to her — no
-measurements taken. Local only.</div>
 <script type="module">
 import * as THREE from 'three';
 
@@ -329,51 +350,88 @@ function showTemplatePins() {
   (BASE.landmarks || []).forEach(l => addPin(l.id, l.label, l.vertex, l.pos, 'template'));
 }
 
-// ---- manual orbit (no addons dependency) ----
-const target = new THREE.Vector3(0, 0.5, 0);
-let theta = 0.256, phi = 1.45, radius = 2.2;
+// ---- camera: damped orbit + pan + pinch + double-tap reset ----
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const cam = { // current (rendered)
+  tx: 0, ty: 0.52, tz: 0, theta: 0.256, phi: 1.45, radius: 2.2,
+  // targets (damped toward these)
+  ttx: 0, tty: 0.52, ttz: 0, ttheta: 0.256, tphi: 1.45, tradius: 2.2,
+};
+const camTarget = new THREE.Vector3();
 function placeCam() {
+  camTarget.set(cam.tx, cam.ty, cam.tz);
   camera.position.set(
-    target.x + radius * Math.sin(phi) * Math.sin(theta),
-    target.y + radius * Math.cos(phi),
-    target.z + radius * Math.sin(phi) * Math.cos(theta)
+    cam.tx + cam.radius * Math.sin(cam.phi) * Math.sin(cam.theta),
+    cam.ty + cam.radius * Math.cos(cam.phi),
+    cam.tz + cam.radius * Math.sin(cam.phi) * Math.cos(cam.theta)
   );
-  camera.lookAt(target);
+  camera.lookAt(camTarget);
 }
+function resetView() {
+  const portrait = innerWidth / innerHeight < 0.8;
+  cam.ttx = 0; cam.tty = 0.52; cam.ttz = 0;
+  cam.ttheta = 0.256; cam.tphi = 1.45;
+  cam.tradius = portrait ? 2.9 : 2.2;
+}
+resetView();
+cam.tx = cam.ttx; cam.ty = cam.tty; cam.tz = cam.ttz;
+cam.theta = cam.ttheta; cam.phi = cam.tphi; cam.radius = cam.tradius;
 placeCam();
+
 const pointers = new Map();
-let pinchD0 = 0, pinchR0 = 0;
+let pinchD0 = 0, lastTapT = 0, lastTapX = 0, lastTapY = 0, lastInteract = 0;
+const nowMs = () => performance.now();
+const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3();
+function panBy(dx, dy) {
+  camera.getWorldDirection(_fwd);
+  _right.crossVectors(_fwd, camera.up).normalize();
+  _up.crossVectors(_right, _fwd).normalize();
+  const s = cam.radius * 0.0016;
+  cam.ttx = clamp(cam.ttx - dx * s * _right.x + dy * s * _up.x, -0.6, 0.6);
+  cam.tty = clamp(cam.tty - dx * s * _right.y + dy * s * _up.y, 0.1, 1.0);
+  cam.ttz = clamp(cam.ttz - dx * s * _right.z + dy * s * _up.z, -0.6, 0.6);
+}
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
-  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  const t = nowMs();
+  if (t - lastTapT < 300 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 40 && pointers.size === 0) {
+    resetView(); lastTapT = 0;
+  } else { lastTapT = t; lastTapX = e.clientX; lastTapY = e.clientY; }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, btn: e.button, shift: e.shiftKey });
   if (pointers.size === 2) {
     const p = [...pointers.values()];
-    pinchD0 = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]);
-    pinchR0 = radius;
+    pinchD0 = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
   }
+  lastInteract = t;
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e => {
-  if (!pointers.has(e.pointerId)) return;
-  const prev = pointers.get(e.pointerId);
-  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  const pt = pointers.get(e.pointerId);
+  if (!pt) return;
+  const dx = e.clientX - pt.x, dy = e.clientY - pt.y;
+  pt.x = e.clientX; pt.y = e.clientY;
+  lastInteract = nowMs();
   if (pointers.size === 1) {
-    theta -= (e.clientX - prev[0]) * 0.005;
-    phi = Math.min(2.8, Math.max(0.2, phi - (e.clientY - prev[1]) * 0.005));
-    placeCam();
+    if (pt.btn === 2 || pt.shift) panBy(dx, dy);
+    else {
+      cam.ttheta -= dx * 0.0052;
+      cam.tphi = clamp(cam.tphi - dy * 0.0052, 0.15, 2.85);
+    }
   } else if (pointers.size === 2) {
     const p = [...pointers.values()];
-    const d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]);
-    if (pinchD0 > 0) radius = Math.min(6, Math.max(0.8, pinchR0 * pinchD0 / d));
-    placeCam();
+    const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    if (pinchD0 > 0 && d > 0) cam.tradius = clamp(cam.tradius * pinchD0 / d, 0.7, 6);
+    pinchD0 = d;
+    panBy(dx / 2, dy / 2);
   }
 });
-const endPointer = e => pointers.delete(e.pointerId);
+const endPointer = e => { pointers.delete(e.pointerId); lastInteract = nowMs(); };
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
-  radius = Math.min(6, Math.max(0.8, radius * Math.exp(e.deltaY * 0.001)));
-  placeCam();
+  cam.tradius = clamp(cam.tradius * Math.exp(e.deltaY * 0.0011), 0.7, 6);
+  lastInteract = nowMs();
 }, { passive: false });
 
 // ---- parametric sculpting ----
@@ -425,7 +483,7 @@ covBtn.onclick = () => {
 };
 const view = (t, p) => {
   auto = false; rotBtn.classList.remove('on');
-  theta = t; phi = p; placeCam();
+  cam.ttheta = t; cam.tphi = p;
 };
 document.getElementById('front').onclick = () => view(0, 1.45);
 document.getElementById('side').onclick  = () => view(Math.PI / 2, 1.45);
@@ -523,9 +581,28 @@ addEventListener('resize', resize); resize();
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (auto && pointers.size === 0) { theta += dt * 0.45; placeCam(); }
+  const t = nowMs();
+  if (auto && pointers.size === 0 && t - lastInteract > 2500) cam.ttheta += dt * 0.45;
+  const k = 1 - Math.exp(-dt * 12);
+  let dth = cam.ttheta - cam.theta;
+  dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+  cam.theta += dth * k;
+  cam.phi += (cam.tphi - cam.phi) * k;
+  cam.radius += (cam.tradius - cam.radius) * k;
+  cam.tx += (cam.ttx - cam.tx) * k;
+  cam.ty += (cam.tty - cam.ty) * k;
+  cam.tz += (cam.ttz - cam.tz) * k;
+  placeCam();
   renderer.render(scene, camera);
 });
+
+// sheet toggle
+const sheet = document.getElementById('sheet');
+const chev = document.getElementById('chev');
+document.getElementById('grab').onclick = () => {
+  sheet.classList.toggle('open');
+  chev.textContent = sheet.classList.contains('open') ? '\u25BC' : '\u25B2';
+};
 </script>
 </body>
 </html>
